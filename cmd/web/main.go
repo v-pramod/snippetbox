@@ -7,23 +7,29 @@ import (
 	"log"
 	"net/http"
 	"os"
+	"time"
 
 	"snippetbox.pramod.net/internal/models"
 
+	"github.com/alexedwards/scs/mysqlstore"
+	"github.com/alexedwards/scs/v2"
 	"github.com/go-playground/form/v4"
 	_ "github.com/go-sql-driver/mysql"
 )
 
 type application struct {
-	snippets      *models.SnippetModel
-	errorLog      *log.Logger
-	infoLog       *log.Logger
-	templateCache map[string]*template.Template
-	formDecoder   *form.Decoder
+	snippets       *models.SnippetModel
+	errorLog       *log.Logger
+	infoLog        *log.Logger
+	templateCache  map[string]*template.Template
+	formDecoder    *form.Decoder
+	sessionManager *scs.SessionManager
 }
 
 func main() {
 	addr := flag.String("addr", ":4000", "HTTP network address")
+
+	// mysql -D snippetbox -u web -p
 	dsn := flag.String("dsn", "web:vpassvsp@/snippetbox?parseTime=true", "MySQL data source name")
 
 	flag.Parse()
@@ -45,12 +51,17 @@ func main() {
 
 	formDecoder := form.NewDecoder()
 
+	sessionManager := scs.New()
+	sessionManager.Store = mysqlstore.New(db)
+	sessionManager.Lifetime = 12 * time.Hour
+
 	app := &application{
-		snippets:      &models.SnippetModel{DB: db},
-		errorLog:      errorLog,
-		infoLog:       infoLog,
-		templateCache: templateCache,
-		formDecoder:   formDecoder,
+		snippets:       &models.SnippetModel{DB: db},
+		errorLog:       errorLog,
+		infoLog:        infoLog,
+		templateCache:  templateCache,
+		formDecoder:    formDecoder,
+		sessionManager: sessionManager,
 	}
 
 	srv := &http.Server{
