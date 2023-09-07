@@ -1,4 +1,4 @@
-./tls
+tls/
 
 # Binaries for programs and plugins
 *.exe
