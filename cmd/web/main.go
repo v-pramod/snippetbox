@@ -5,7 +5,9 @@ import (
 	"database/sql"
 	"flag"
 	"html/template"
-	"log"
+
+	// "log"
+	"log/slog"
 	"net/http"
 	"os"
 	"time"
@@ -20,8 +22,7 @@ import (
 
 type application struct {
 	snippets       *models.SnippetModel
-	errorLog       *log.Logger
-	infoLog        *log.Logger
+	logger         *slog.Logger
 	templateCache  map[string]*template.Template
 	formDecoder    *form.Decoder
 	sessionManager *scs.SessionManager
@@ -35,19 +36,24 @@ func main() {
 
 	flag.Parse()
 
-	infoLog := log.New(os.Stdout, "INFO\t", log.Ldate|log.Ltime)
-	errorLog := log.New(os.Stderr, "ERROR\t", log.Ldate|log.Ltime|log.Lshortfile)
+	// infoLog := log.New(os.Stdout, "INFO\t", log.Ldate|log.Ltime)
+	// errorLog := log.New(os.Stderr, "ERROR\t", log.Ldate|log.Ltime|log.Lshortfile)
 
+	logger := slog.New(slog.NewTextHandler(os.Stdout, nil))
+
+	// create a connection to database
 	db, err := openDB(*dsn)
 	if err != nil {
-		errorLog.Fatal(err)
+		logger.Error(err.Error())
+		os.Exit(1)
 	}
 
 	defer db.Close()
 
 	templateCache, err := newTemplateCache()
 	if err != nil {
-		errorLog.Fatal(err)
+		logger.Error(err.Error())
+		os.Exit(1)
 	}
 
 	formDecoder := form.NewDecoder()
@@ -58,9 +64,10 @@ func main() {
 	sessionManager.Cookie.Secure = true
 
 	app := &application{
-		snippets:       &models.SnippetModel{DB: db},
-		errorLog:       errorLog,
-		infoLog:        infoLog,
+		snippets: &models.SnippetModel{DB: db},
+		// errorLog:       errorLog,
+		// infoLog:        infoLog,
+		logger:         logger,
 		templateCache:  templateCache,
 		formDecoder:    formDecoder,
 		sessionManager: sessionManager,
@@ -71,8 +78,8 @@ func main() {
 	}
 
 	srv := &http.Server{
-		Addr:         *addr,
-		ErrorLog:     errorLog,
+		Addr: *addr,
+		// ErrorLog:     errorLog,
 		Handler:      app.routes(),
 		TLSConfig:    tlsconfig,
 		IdleTimeout:  time.Minute,
@@ -81,11 +88,13 @@ func main() {
 	}
 
 	// webserver
-	infoLog.Printf("Starting server on %s", *addr)
+	logger.Info("Starting server", "addr", *addr)
 	err = srv.ListenAndServeTLS("./tls/cert.pem", "./tls/key.pem")
-	errorLog.Fatal(err)
+	logger.Error(err.Error())
+	os.Exit(1)
 }
 
+// initialize  a database pool
 func openDB(dsn string) (*sql.DB, error) {
 	db, err := sql.Open("mysql", dsn)
 	if err != nil {

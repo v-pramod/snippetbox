@@ -22,13 +22,14 @@ type snippetCreateForm struct {
 func (app *application) home(w http.ResponseWriter, r *http.Request) {
 	snippets, err := app.snippets.Latest()
 	if err != nil {
-		app.serverError(w, err)
+		app.serverError(w, r, err)
 		return
 	}
+
 	data := app.newTemplateData(r)
 	data.Snippets = snippets
 
-	app.render(w, http.StatusOK, "home.tmpl", data)
+	app.render(w, r, http.StatusOK, "home.tmpl", data)
 }
 
 // snippetView handler function
@@ -46,7 +47,7 @@ func (app *application) snippetView(w http.ResponseWriter, r *http.Request) {
 		if errors.Is(err, models.ErrNoRecord) {
 			app.notFound(w)
 		} else {
-			app.serverError(w, err)
+			app.serverError(w, r, err)
 		}
 		return
 	}
@@ -54,7 +55,7 @@ func (app *application) snippetView(w http.ResponseWriter, r *http.Request) {
 	data := app.newTemplateData(r)
 	data.Snippet = snippet
 
-	app.render(w, http.StatusOK, "view.tmpl", data)
+	app.render(w, r, http.StatusOK, "view.tmpl", data)
 }
 
 func (app *application) snippetCreate(w http.ResponseWriter, r *http.Request) {
@@ -64,7 +65,7 @@ func (app *application) snippetCreate(w http.ResponseWriter, r *http.Request) {
 		Expires: 365,
 	}
 
-	app.render(w, http.StatusOK, "create.tmpl", data)
+	app.render(w, r, http.StatusOK, "create.tmpl", data)
 }
 
 // snippetCreate handler function
@@ -85,14 +86,14 @@ func (app *application) snippetCreatePost(w http.ResponseWriter, r *http.Request
 	if !form.Valid() {
 		data := app.newTemplateData(r)
 		data.Form = form
-		app.render(w, http.StatusUnprocessableEntity, "create.tmpl", data)
+		app.render(w, r, http.StatusUnprocessableEntity, "create.tmpl", data)
 		return
 	}
 
 	// add data to database
 	id, err := app.snippets.Insert(form.Title, form.Content, form.Expires)
 	if err != nil {
-		app.serverError(w, err)
+		app.serverError(w, r, err)
 		return
 	}
 
